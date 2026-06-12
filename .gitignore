@@ -1,0 +1,21 @@
+# Go ignores
+/server
+/expenses.db
+/expenses.db-shm
+/expenses.db-wal
+/*.db
+/*.db-shm
+/*.db-wal
+/.go/
+/data/
+
+# Web ignores
+/web/node_modules/
+/web/dist/
+/web/.eslintcache
+/web/dist-ssr/
+/web/*.local
+
+# OS ignores
+.DS_Store
+Thumbs.db

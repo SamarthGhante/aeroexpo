@@ -1,0 +1,30 @@
+# ==========================================
+# [PATCH / TEMPORARY IMPLEMENTATION]
+# Docker Compose to launch single container stack.
+# Persists sqlite database to host folder ./data
+# ==========================================
+
+services:
+  aeroexpo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aeroexpo-app
+#    ports:
+#      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_PATH=/app/data/expenses.db
+      - STATIC_DIR=/app/web/dist
+      # Option to configure TZ
+      - TZ=UTC
+    volumes:
+      # Mount host directory ./data to persist the SQLite DB across container lifetimes
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - router
+
+networks:
+  router:
+    external: true

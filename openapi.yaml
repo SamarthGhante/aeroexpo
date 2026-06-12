@@ -1,0 +1,325 @@
+openapi: 3.0.3
+info:
+  title: Expense Logger API
+  description: A superfast, lightweight, WAL-backed SQLite Expense Logger API.
+  version: 1.0.0
+paths:
+  /expenses:
+    post:
+      summary: Create a new expense record
+      operationId: createExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '201':
+          description: Expense created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          description: Validation or parsing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal server error
+    get:
+      summary: List and filter expenses
+      operationId: listExpenses
+      parameters:
+        - name: category
+          in: query
+          description: Filter by exact category name
+          required: false
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          description: Filter starting date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: Filter ending date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          description: Maximum records to return (1-1000)
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          description: Number of records to skip
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of expenses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '400':
+          description: Invalid query date filters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal server error
+
+  /expenses/{id}:
+    get:
+      summary: Get an expense by ID
+      operationId: getExpense
+      parameters:
+        - name: id
+          in: path
+          description: Expense UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expense retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '404':
+          description: Expense not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '500':
+          description: Internal server error
+    put:
+      summary: Update an existing expense by ID
+      operationId: updateExpense
+      parameters:
+        - name: id
+          in: path
+          description: Expense UUID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExpenseRequest'
+      responses:
+        '200':
+          description: Expense updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          description: Validation or parsing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '404':
+          description: Expense not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '500':
+          description: Internal server error
+    delete:
+      summary: Delete an expense by ID
+      operationId: deleteExpense
+      parameters:
+        - name: id
+          in: path
+          description: Expense UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Expense deleted successfully
+        '404':
+          description: Expense not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '500':
+          description: Internal server error
+
+  /expenses/summary:
+    get:
+      summary: Get total spending grouped by category
+      operationId: getSummary
+      parameters:
+        - name: start_date
+          in: query
+          description: Filter starting date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: Filter ending date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Spending summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+        '400':
+          description: Invalid date filters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    CreateExpenseRequest:
+      type: object
+      required:
+        - title
+        - amount
+        - category
+        - date
+      properties:
+        title:
+          type: string
+          example: Office Lunch
+        amount:
+          type: integer
+          format: int64
+          description: Amount in cents (e.g. $10.50 -> 1050)
+          example: 1050
+        category:
+          type: string
+          example: Food
+        date:
+          type: string
+          format: date
+          example: "2026-06-12"
+    UpdateExpenseRequest:
+      type: object
+      required:
+        - title
+        - amount
+        - category
+        - date
+      properties:
+        title:
+          type: string
+          example: Dinner Meeting
+        amount:
+          type: integer
+          format: int64
+          description: Amount in cents (e.g. $25.00 -> 2500)
+          example: 2500
+        category:
+          type: string
+          example: Food
+        date:
+          type: string
+          format: date
+          example: "2026-06-12"
+    Expense:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: e4414f08-bdf7-40d9-b2ee-1ff9f0be896f
+        title:
+          type: string
+          example: Office Lunch
+        amount:
+          type: integer
+          format: int64
+          description: Amount in cents
+          example: 1050
+        category:
+          type: string
+          example: Food
+        date:
+          type: string
+          format: date
+          example: "2026-06-12"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-12T17:01:22Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-12T17:01:22Z"
+    Summary:
+      type: object
+      properties:
+        total_spent:
+          type: integer
+          format: int64
+          description: Total spent in cents across the range
+          example: 3550
+        category_breakdown:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+          description: Total cents spent in each category
+          example:
+            Food: 1050
+            Transport: 2500
+        start_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        end_date:
+          type: string
+          format: date
+          example: "2026-06-30"
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "invalid title: cannot be empty"
+        field:
+          type: string
+          example: title
+    APIError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: expense not found
