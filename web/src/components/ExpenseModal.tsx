@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import type { Expense } from '../types';
+import { toLocalDateString } from '../types';
 import { ApiError } from '../api';
 
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   expenseToEdit: Expense | null;
-  onSubmit: (expenseData: { title: string; amount: number; category: string; date: string }) => Promise<void>;
+  onSubmit: (expenseData: { title: string; amount: number; category: string; date: string; notes: string }) => Promise<void>;
   currency: string;
 }
 
@@ -34,6 +35,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [date, setDate] = useState('');
+  const [notes, setNotes] = useState('');
   
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState<{ message: string; field?: string } | null>(null);
@@ -44,6 +46,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setTitle(expenseToEdit.title);
       setAmountStr((expenseToEdit.amount / 100).toFixed(2));
       setDate(expenseToEdit.date);
+      setNotes(expenseToEdit.notes || '');
       
       const isPreset = PRESET_CATEGORIES.includes(expenseToEdit.category);
       if (isPreset) {
@@ -61,11 +64,13 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setCategory(PRESET_CATEGORIES[0]);
       setCustomCategory('');
       setIsCustomCategory(false);
+      setNotes('');
       
-      // Default to today's date in YYYY-MM-DD
-      const today = new Date().toISOString().split('T')[0];
+      // Default to today's date in YYYY-MM-DD using local timezone helper
+      const today = toLocalDateString(new Date());
       setDate(today);
     }
+
     setApiError(null);
   }, [expenseToEdit, isOpen]);
 
@@ -122,6 +127,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
         amount: centsAmount,
         category: finalCategory,
         date,
+        notes: notes.trim(),
       });
       onClose();
     } catch (err) {
@@ -264,6 +270,27 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                 disabled={submitting}
               />
               {apiError?.field === 'date' && (
+                <div className="form-error-msg">
+                  <AlertCircle size={14} />
+                  <span>{apiError.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div className={`form-group ${apiError?.field === 'notes' ? 'has-error' : ''}`}>
+              <label className="form-label" htmlFor="expense-notes">Notes (Optional)</label>
+              <textarea
+                id="expense-notes"
+                className="input-control"
+                placeholder="e.g. Purchased from local dealer, warranty 2 years"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={submitting}
+                rows={3}
+                style={{ resize: 'vertical', minHeight: '80px' }}
+              />
+              {apiError?.field === 'notes' && (
                 <div className="form-error-msg">
                   <AlertCircle size={14} />
                   <span>{apiError.message}</span>

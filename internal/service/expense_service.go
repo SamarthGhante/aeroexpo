@@ -27,14 +27,16 @@ type CreateExpenseRequest struct {
 	Title    string `json:"title"`
 	Amount   int64  `json:"amount"` // in cents
 	Category string `json:"category"`
-	Date     string `json:"date"` // YYYY-MM-DD
+	Date     string `json:"date"`  // YYYY-MM-DD
+	Notes    string `json:"notes"` // optional notes
 }
 
 type UpdateExpenseRequest struct {
 	Title    string `json:"title"`
 	Amount   int64  `json:"amount"` // in cents
 	Category string `json:"category"`
-	Date     string `json:"date"` // YYYY-MM-DD
+	Date     string `json:"date"`  // YYYY-MM-DD
+	Notes    string `json:"notes"` // optional notes
 }
 
 // ExpenseService defines the business logic methods.
@@ -113,6 +115,14 @@ func validateOptionalDate(dateStr string, fieldName string) error {
 	return nil
 }
 
+func validateNotes(notes string) error {
+	trimmed := strings.TrimSpace(notes)
+	if len(trimmed) > 500 {
+		return ValidationError{Field: "notes", Message: "cannot exceed 500 characters"}
+	}
+	return nil
+}
+
 func (s *DefaultExpenseService) Create(ctx context.Context, req CreateExpenseRequest) (*model.Expense, error) {
 	if err := validateTitle(req.Title); err != nil {
 		return nil, err
@@ -126,6 +136,9 @@ func (s *DefaultExpenseService) Create(ctx context.Context, req CreateExpenseReq
 	if err := validateDate(req.Date); err != nil {
 		return nil, err
 	}
+	if err := validateNotes(req.Notes); err != nil {
+		return nil, err
+	}
 
 	expense := &model.Expense{
 		ID:       uuid.NewString(),
@@ -133,6 +146,7 @@ func (s *DefaultExpenseService) Create(ctx context.Context, req CreateExpenseReq
 		Amount:   req.Amount,
 		Category: strings.TrimSpace(req.Category),
 		Date:     strings.TrimSpace(req.Date),
+		Notes:    strings.TrimSpace(req.Notes),
 	}
 
 	if err := s.repo.Create(ctx, expense); err != nil {
@@ -165,6 +179,9 @@ func (s *DefaultExpenseService) Update(ctx context.Context, id string, req Updat
 	if err := validateDate(req.Date); err != nil {
 		return nil, err
 	}
+	if err := validateNotes(req.Notes); err != nil {
+		return nil, err
+	}
 
 	// Verify existence first
 	expense, err := s.repo.GetByID(ctx, id)
@@ -176,6 +193,7 @@ func (s *DefaultExpenseService) Update(ctx context.Context, id string, req Updat
 	expense.Amount = req.Amount
 	expense.Category = strings.TrimSpace(req.Category)
 	expense.Date = strings.TrimSpace(req.Date)
+	expense.Notes = strings.TrimSpace(req.Notes)
 
 	if err := s.repo.Update(ctx, expense); err != nil {
 		return nil, err

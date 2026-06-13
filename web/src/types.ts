@@ -4,6 +4,7 @@ export interface Expense {
   amount: number; // in cents
   category: string;
   date: string; // YYYY-MM-DD
+  notes?: string; // Optional notes
   created_at: string;
   updated_at: string;
 }
@@ -41,3 +42,11 @@ export const CURRENCY_OPTIONS: CurrencyOption[] = [
   { code: 'INR', symbol: '₹', locale: 'en-IN' },
   { code: 'JPY', symbol: '¥', locale: 'ja-JP' },
 ];
+
+export const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+

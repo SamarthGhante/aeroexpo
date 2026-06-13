@@ -50,8 +50,8 @@ func (r *SQLiteExpenseRepository) Create(ctx context.Context, expense *model.Exp
 	expense.UpdatedAt = now
 
 	query := `
-	INSERT INTO expenses (id, title, amount, category, date, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO expenses (id, title, amount, category, date, notes, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(
@@ -62,6 +62,7 @@ func (r *SQLiteExpenseRepository) Create(ctx context.Context, expense *model.Exp
 		expense.Amount,
 		expense.Category,
 		expense.Date,
+		expense.Notes,
 		expense.CreatedAt.Format(time.RFC3339),
 		expense.UpdatedAt.Format(time.RFC3339),
 	)
@@ -75,7 +76,7 @@ func (r *SQLiteExpenseRepository) Create(ctx context.Context, expense *model.Exp
 // GetByID retrieves a single expense by its ID.
 func (r *SQLiteExpenseRepository) GetByID(ctx context.Context, id string) (*model.Expense, error) {
 	query := `
-	SELECT id, title, amount, category, date, created_at, updated_at
+	SELECT id, title, amount, category, date, notes, created_at, updated_at
 	FROM expenses
 	WHERE id = ?
 	`
@@ -89,6 +90,7 @@ func (r *SQLiteExpenseRepository) GetByID(ctx context.Context, id string) (*mode
 		&exp.Amount,
 		&exp.Category,
 		&exp.Date,
+		&exp.Notes,
 		&createdAtStr,
 		&updatedAtStr,
 	)
@@ -128,7 +130,7 @@ func (r *SQLiteExpenseRepository) Update(ctx context.Context, expense *model.Exp
 
 	query := `
 	UPDATE expenses
-	SET title = ?, amount = ?, category = ?, date = ?, updated_at = ?
+	SET title = ?, amount = ?, category = ?, date = ?, notes = ?, updated_at = ?
 	WHERE id = ?
 	`
 
@@ -139,6 +141,7 @@ func (r *SQLiteExpenseRepository) Update(ctx context.Context, expense *model.Exp
 		expense.Amount,
 		expense.Category,
 		expense.Date,
+		expense.Notes,
 		expense.UpdatedAt.Format(time.RFC3339),
 		expense.ID,
 	)
@@ -181,7 +184,7 @@ func (r *SQLiteExpenseRepository) Delete(ctx context.Context, id string) error {
 
 // List queries expenses based on filters.
 func (r *SQLiteExpenseRepository) List(ctx context.Context, filter Filter) ([]model.Expense, error) {
-	query := "SELECT id, title, amount, category, date, created_at, updated_at FROM expenses WHERE 1=1"
+	query := "SELECT id, title, amount, category, date, notes, created_at, updated_at FROM expenses WHERE 1=1"
 	var args []interface{}
 
 	if filter.Category != "" {
@@ -224,6 +227,7 @@ func (r *SQLiteExpenseRepository) List(ctx context.Context, filter Filter) ([]mo
 			&exp.Amount,
 			&exp.Category,
 			&exp.Date,
+			&exp.Notes,
 			&createdAtStr,
 			&updatedAtStr,
 		)

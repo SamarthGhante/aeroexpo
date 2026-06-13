@@ -5,14 +5,16 @@ import { getColorForCategory } from './CategoryChart';
 
 interface CalendarViewProps {
   expenses: Expense[];
-  selectedDate: string; // YYYY-MM-DD
-  onSelectDate: (date: string) => void;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  onSelectRange: (startDate: string, endDate: string) => void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   expenses,
-  selectedDate,
-  onSelectDate,
+  startDate,
+  endDate,
+  onSelectRange,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -48,6 +50,28 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
+  const handleDayClick = (dateStr: string) => {
+    if (!startDate) {
+      // No range started, select this single day
+      onSelectRange(dateStr, dateStr);
+    } else if (startDate === endDate) {
+      // A single day is currently selected
+      if (dateStr === startDate) {
+        // Toggle off if clicking the same day again
+        onSelectRange('', '');
+      } else if (dateStr < startDate) {
+        // Select range from clicked date to start date
+        onSelectRange(dateStr, startDate);
+      } else {
+        // Select range from start date to clicked date
+        onSelectRange(startDate, dateStr);
+      }
+    } else {
+      // A full range is currently selected, click starts a new single day range
+      onSelectRange(dateStr, dateStr);
+    }
+  };
+
   // Compile calendar cells
   const cells = [];
   // Empty slots for alignment
@@ -64,7 +88,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
     const dateExpenses = expensesByDate[dateStr] || [];
     const hasExpenses = dateExpenses.length > 0;
-    const isSelected = selectedDate === dateStr;
+
+    // Range status
+    const isStart = startDate === dateStr;
+    const isEnd = endDate === dateStr;
+    const isMid = startDate && endDate && dateStr > startDate && dateStr < endDate;
+    const isSelected = isStart || isEnd;
 
     // Get dominant category color if has expenses
     let dotColor = 'var(--accent-primary)';
@@ -72,19 +101,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       dotColor = getColorForCategory(dateExpenses[0].category);
     }
 
+    let cellClass = 'calendar-day';
+    if (isStart) cellClass += ' range-start selected';
+    if (isEnd) cellClass += ' range-end selected';
+    if (isMid) cellClass += ' range-mid';
+    if (hasExpenses) cellClass += ' has-events';
+
     cells.push(
       <button
         key={`day-${day}`}
         type="button"
-        className={`calendar-day ${isSelected ? 'selected' : ''} ${hasExpenses ? 'has-events' : ''}`}
-        onClick={() => onSelectDate(isSelected ? '' : dateStr)}
+        className={cellClass}
+        onClick={() => handleDayClick(dateStr)}
         title={hasExpenses ? `${dateExpenses.length} transaction(s)` : 'No transactions'}
       >
         <span className="day-number">{day}</span>
         {hasExpenses && (
           <span
             className="day-indicator"
-            style={{ backgroundColor: dotColor }}
+            style={{ backgroundColor: isSelected ? '#fff' : dotColor }}
           />
         )}
       </button>
@@ -121,19 +156,51 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {cells}
       </div>
 
-      {selectedDate && (
+      {startDate && (
         <div className="calendar-selected-info flex align-center justify-between">
           <span className="flex align-center gap-8">
             <Tag size={14} style={{ color: 'var(--accent-primary)' }} />
-            Filtering for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {startDate === endDate ? (
+              <span>
+                Filtering for{' '}
+                {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            ) : endDate ? (
+              <span>
+                Range:{' '}
+                {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                })}{' '}
+                -{' '}
+                {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            ) : (
+              <span>
+                From{' '}
+                {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            )}
           </span>
           <button
             type="button"
             className="btn btn-secondary"
             style={{ padding: '2px 8px', fontSize: '11px', borderRadius: '4px' }}
-            onClick={() => onSelectDate('')}
+            onClick={() => onSelectRange('', '')}
           >
-            Clear Date
+            Clear Range
           </button>
         </div>
       )}

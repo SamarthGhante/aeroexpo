@@ -18,11 +18,12 @@ import {
 
 import { api } from './api';
 import type { Expense, Summary, FilterParams } from './types';
-import { CURRENCY_OPTIONS } from './types';
+import { CURRENCY_OPTIONS, toLocalDateString } from './types';
 import { MetricCards } from './components/MetricCards';
 import { CategoryChart, getColorForCategory } from './components/CategoryChart';
 import { ExpenseModal } from './components/ExpenseModal';
 import { CalendarView } from './components/CalendarView';
+import { ConfirmationModal } from './components/ConfirmationModal';
 
 interface Toast {
   id: string;
@@ -45,7 +46,6 @@ function App() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Sorting State
@@ -59,6 +59,36 @@ function App() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
+
+  // Confirmation Dialogue State
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (options: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  }) => {
+    setConfirmConfig({
+      isOpen: true,
+      ...options,
+    });
+  };
 
   // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -84,15 +114,12 @@ function App() {
 
       if (categoryFilter) filters.category = categoryFilter;
       
-      const activeStartDate = selectedCalendarDate || startDateFilter;
-      const activeEndDate = selectedCalendarDate || endDateFilter;
-
-      if (activeStartDate) filters.start_date = activeStartDate;
-      if (activeEndDate) filters.end_date = activeEndDate;
+      if (startDateFilter) filters.start_date = startDateFilter;
+      if (endDateFilter) filters.end_date = endDateFilter;
 
       const [expensesData, summaryData] = await Promise.all([
         api.getExpenses(filters),
-        api.getSummary(activeStartDate || undefined, activeEndDate || undefined),
+        api.getSummary(startDateFilter || undefined, endDateFilter || undefined),
       ]);
 
       setExpenses(expensesData);
@@ -103,7 +130,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [categoryFilter, startDateFilter, endDateFilter, selectedCalendarDate, limit, offset, addToast]);
+  }, [categoryFilter, startDateFilter, endDateFilter, limit, offset, addToast]);
 
   // Load data on filter/page change
   useEffect(() => {
@@ -113,7 +140,7 @@ function App() {
   // Reset pagination offset on filter change
   useEffect(() => {
     setOffset(0);
-  }, [categoryFilter, startDateFilter, endDateFilter, selectedCalendarDate]);
+  }, [categoryFilter, startDateFilter, endDateFilter]);
 
   // Currency Formatter
   const formatCurrency = (cents: number) => {
@@ -155,6 +182,7 @@ function App() {
     amount: number;
     category: string;
     date: string;
+    notes: string;
   }) => {
     if (expenseToEdit) {
       // Edit mode
@@ -169,16 +197,22 @@ function App() {
   };
 
   // Handle Delete Click
-  const handleDeleteClick = async (id: string) => {
-    if (confirm('Are you sure you want to delete this expense?')) {
-      try {
-        await api.deleteExpense(id);
-        addToast('Expense deleted successfully');
-        fetchData();
-      } catch (err: any) {
-        addToast(err.message || 'Failed to delete expense', 'error');
-      }
-    }
+  const handleDeleteClick = (id: string) => {
+    showConfirm({
+      title: 'Delete Expense',
+      message: 'Are you sure you want to delete this expense? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await api.deleteExpense(id);
+          addToast('Expense deleted successfully');
+          fetchData();
+        } catch (err: any) {
+          addToast(err.message || 'Failed to delete expense', 'error');
+        }
+      },
+    });
   };
 
   // Handle Reset View (Resets settings, currency, and filters)
@@ -187,7 +221,6 @@ function App() {
     setCategoryFilter('');
     setStartDateFilter('');
     setEndDateFilter('');
-    setSelectedCalendarDate('');
     setCurrency('USD');
     localStorage.setItem('aeroexpo_currency', 'USD');
     setOffset(0);
@@ -196,32 +229,33 @@ function App() {
   };
 
   // Handle Clear All Data (Database Reset)
-  const handleClearAllData = async () => {
-    if (
-      confirm(
-        'WARNING: This will permanently delete ALL expenses from the database. This action cannot be undone. Are you sure?'
-      )
-    ) {
-      try {
-        setLoading(true);
-        // Fetch list up to 1000 items to delete them
-        const allExpenses = await api.getExpenses({ limit: 1000 });
-        if (allExpenses.length === 0) {
-          addToast('No database expenses to clear');
+  const handleClearAllData = () => {
+    showConfirm({
+      title: 'Clear Database Data',
+      message: 'WARNING: This will permanently delete ALL expenses from the database. This action cannot be undone. Are you sure?',
+      confirmText: 'Clear All',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          // Fetch list up to 1000 items to delete them
+          const allExpenses = await api.getExpenses({ limit: 1000 });
+          if (allExpenses.length === 0) {
+            addToast('No database expenses to clear');
+            setIsSettingsOpen(false);
+            return;
+          }
+          await Promise.all(allExpenses.map((e) => api.deleteExpense(e.id)));
+          addToast('All database data cleared successfully');
           setIsSettingsOpen(false);
-          return;
+          fetchData();
+        } catch (err: any) {
+          addToast(err.message || 'Failed to clear database data', 'error');
+        } finally {
+          setLoading(false);
         }
-        await Promise.all(allExpenses.map((e) => api.deleteExpense(e.id)));
-        addToast('All database data cleared successfully');
-        setSelectedCalendarDate('');
-        setIsSettingsOpen(false);
-        fetchData();
-      } catch (err: any) {
-        addToast(err.message || 'Failed to clear database data', 'error');
-      } finally {
-        setLoading(false);
-      }
-    }
+      },
+    });
   };
 
   // Client Side Search Filter and Sorting
@@ -257,19 +291,13 @@ function App() {
   const setQuickRange = (range: 'this-month' | 'last-30' | 'all') => {
     const today = new Date();
     if (range === 'this-month') {
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-        .toISOString()
-        .split('T')[0];
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-        .toISOString()
-        .split('T')[0];
+      const startOfMonth = toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
+      const endOfMonth = toLocalDateString(new Date(today.getFullYear(), today.getMonth() + 1, 0));
       setStartDateFilter(startOfMonth);
       setEndDateFilter(endOfMonth);
     } else if (range === 'last-30') {
-      const priorDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0];
-      const todayStr = today.toISOString().split('T')[0];
+      const priorDate = toLocalDateString(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
+      const todayStr = toLocalDateString(today);
       setStartDateFilter(priorDate);
       setEndDateFilter(todayStr);
     } else {
@@ -512,7 +540,16 @@ function App() {
                     <tbody>
                       {filteredExpenses.map((expense) => (
                         <tr key={expense.id}>
-                          <td style={{ fontWeight: '500' }}>{expense.title}</td>
+                          <td style={{ fontWeight: '500' }}>
+                            <div className="expense-title-cell">
+                              <span className="expense-title-text">{expense.title}</span>
+                              {expense.notes && (
+                                <span className="expense-notes-text" title={expense.notes}>
+                                  {expense.notes}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             <span
                               className="badge"
@@ -586,8 +623,12 @@ function App() {
           <div className="flex flex-col gap-24" style={{ gap: '24px', display: 'flex', flexDirection: 'column' }}>
             <CalendarView
               expenses={expenses}
-              selectedDate={selectedCalendarDate}
-              onSelectDate={setSelectedCalendarDate}
+              startDate={startDateFilter}
+              endDate={endDateFilter}
+              onSelectRange={(start, end) => {
+                setStartDateFilter(start);
+                setEndDateFilter(end);
+              }}
             />
             <CategoryChart summary={summary} currency={currency} />
           </div>
@@ -601,6 +642,18 @@ function App() {
         expenseToEdit={expenseToEdit}
         onSubmit={handleModalSubmit}
         currency={currency}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        isDanger={confirmConfig.isDanger}
+        onConfirm={confirmConfig.onConfirm}
+        onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
       />
 
       {/* Toast Notifications */}

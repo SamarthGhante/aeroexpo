@@ -9,6 +9,7 @@ type Expense struct {
 	Amount    int64     `json:"amount"` // Stored in cents (e.g. $10.50 -> 1050)
 	Category  string    `json:"category"`
 	Date      string    `json:"date"` // YYYY-MM-DD
+	Notes     string    `json:"notes"` // Optional notes
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

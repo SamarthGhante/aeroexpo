@@ -49,6 +49,7 @@ func (db *DB) RunMigrations() error {
 		amount INTEGER NOT NULL, -- in cents
 		category TEXT NOT NULL,
 		date TEXT NOT NULL,      -- YYYY-MM-DD
+		notes TEXT DEFAULT '',   -- optional notes
 		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -60,6 +61,28 @@ func (db *DB) RunMigrations() error {
 	_, err := db.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	// Safety migration: check if 'notes' column exists in case the database was already created
+	rows, err := db.Query("PRAGMA table_info(expenses)")
+	if err == nil {
+		defer rows.Close()
+		hasNotes := false
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull, pk int
+			var dfltVal interface{}
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltVal, &pk); err == nil {
+				if name == "notes" {
+					hasNotes = true
+					break
+				}
+			}
+		}
+		if !hasNotes {
+			_, _ = db.Exec("ALTER TABLE expenses ADD COLUMN notes TEXT DEFAULT ''")
+		}
 	}
 
 	return nil
