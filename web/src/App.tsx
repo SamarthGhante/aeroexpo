@@ -41,6 +41,7 @@ function App() {
   // Settings State
   const [currency, setCurrency] = useState<string>(() => localStorage.getItem('aeroexpo_currency') || 'USD');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('aeroexpo_api_url') || '');
 
   // Filters State
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -215,6 +216,21 @@ function App() {
     });
   };
 
+  const handleSaveApiUrl = () => {
+    const trimmed = apiUrl.trim();
+    const current = localStorage.getItem('aeroexpo_api_url') || '';
+    if (trimmed === current) return;
+
+    if (trimmed) {
+      localStorage.setItem('aeroexpo_api_url', trimmed);
+      addToast(`API URL updated to: ${trimmed}`);
+    } else {
+      localStorage.removeItem('aeroexpo_api_url');
+      addToast('API URL reset to default');
+    }
+    fetchData();
+  };
+
   // Handle Reset View (Resets settings, currency, and filters)
   const handleResetView = () => {
     setSearchQuery('');
@@ -222,10 +238,13 @@ function App() {
     setStartDateFilter('');
     setEndDateFilter('');
     setCurrency('USD');
+    setApiUrl('');
     localStorage.setItem('aeroexpo_currency', 'USD');
+    localStorage.removeItem('aeroexpo_api_url');
     setOffset(0);
     setIsSettingsOpen(false);
     addToast('View and settings reset successfully');
+    fetchData();
   };
 
   // Handle Clear All Data (Database Reset)
@@ -351,6 +370,31 @@ function App() {
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="settings-item" style={{ marginTop: '12px' }}>
+                    <label className="settings-label" htmlFor="settings-api-url">Backend API URL</label>
+                    <div className="flex gap-8">
+                      <input
+                        id="settings-api-url"
+                        type="text"
+                        className="input-control"
+                        placeholder="e.g. http://10.0.2.2:8080"
+                        value={apiUrl}
+                        onChange={(e) => setApiUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveApiUrl();
+                        }}
+                        style={{ fontSize: '13px', padding: '6px 12px', flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ padding: '6px 12px', fontSize: '12px' }}
+                        onClick={handleSaveApiUrl}
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
                   <div className="settings-item flex flex-col gap-8" style={{ marginTop: '16px' }}>
                     <button

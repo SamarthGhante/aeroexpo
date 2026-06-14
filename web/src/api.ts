@@ -39,6 +39,32 @@ async function handleResponse<T>(response: Response): Promise<T> {
   throw new ApiError(response.status, errorMessage, field);
 }
 
+const getBaseUrl = (): string => {
+  const savedUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('aeroexpo_api_url') : null;
+  if (savedUrl) return savedUrl;
+
+  // Fallback to environment variable if set
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) return envUrl;
+
+  // Detect if running inside Capacitor native webview
+  const isNative = typeof window !== 'undefined' && (window as any).Capacitor;
+  if (isNative) {
+    // Return Android Emulator host address as default fallback, or hosted fallback if available
+    return 'http://10.0.2.2:8080';
+  }
+
+  return ''; // Relative path for browser web deployment (same-origin)
+};
+
+const getUrl = (path: string): string => {
+  const base = getBaseUrl();
+  if (!base) return path.startsWith('/') ? path : `/${path}`;
+  const cleanBase = base.replace(/\/$/, '');
+  const cleanPath = path.replace(/^\//, '');
+  return `${cleanBase}/${cleanPath}`;
+};
+
 export const api = {
   /**
    * Get list of expenses with optional query filters.
@@ -52,7 +78,7 @@ export const api = {
     if (filters.offset !== undefined) query.append('offset', String(filters.offset));
 
     const queryString = query.toString();
-    const url = `/expenses${queryString ? `?${queryString}` : ''}`;
+    const url = getUrl(`/expenses${queryString ? `?${queryString}` : ''}`);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -68,7 +94,7 @@ export const api = {
    * Fetch a single expense by ID.
    */
   async getExpense(id: string): Promise<Expense> {
-    const response = await fetch(`/expenses/${id}`, {
+    const response = await fetch(getUrl(`/expenses/${id}`), {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -82,7 +108,7 @@ export const api = {
    * Create a new expense.
    */
   async createExpense(expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>): Promise<Expense> {
-    const response = await fetch('/expenses', {
+    const response = await fetch(getUrl('/expenses'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +124,7 @@ export const api = {
    * Update an existing expense.
    */
   async updateExpense(id: string, expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>): Promise<Expense> {
-    const response = await fetch(`/expenses/${id}`, {
+    const response = await fetch(getUrl(`/expenses/${id}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -114,7 +140,7 @@ export const api = {
    * Delete an expense by ID.
    */
   async deleteExpense(id: string): Promise<void> {
-    const response = await fetch(`/expenses/${id}`, {
+    const response = await fetch(getUrl(`/expenses/${id}`), {
       method: 'DELETE',
     });
 
@@ -130,7 +156,7 @@ export const api = {
     if (endDate) query.append('end_date', endDate);
 
     const queryString = query.toString();
-    const url = `/expenses/summary${queryString ? `?${queryString}` : ''}`;
+    const url = getUrl(`/expenses/summary${queryString ? `?${queryString}` : ''}`);
 
     const response = await fetch(url, {
       method: 'GET',
