@@ -131,6 +131,10 @@ body {
   margin-bottom: 28px;
 }
 
+.metrics-grid > * {
+  min-width: 0;
+}
+
 .metric-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -212,6 +216,14 @@ body {
   margin-bottom: 6px;
 }
 
+.metric-value.category-value {
+  font-size: 32px;
+}
+
+.metric-value.category-value.long-text {
+  font-size: 24px;
+}
+
 .metric-desc {
   font-size: 12px;
   color: var(--text-muted);
@@ -223,6 +235,10 @@ body {
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   align-items: start;
+}
+
+.dashboard-layout > * {
+  min-width: 0;
 }
 
 @media (max-width: 1024px) {
@@ -796,6 +812,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Utility classes */
 .flex { display: flex; }
 .align-center { align-items: center; }
@@ -1047,9 +1072,14 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   
   .controls-row input[type="date"] {
     flex: 1;
-    width: auto !important;
+    width: 100% !important;
+    min-width: 0;
   }
   
+  .section-card {
+    padding: 16px;
+  }
+
   .data-table th {
     padding: 10px 12px;
     font-size: 10px;
@@ -1078,6 +1108,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 /* Extra Small Screens (500px and below) */
 @media (max-width: 500px) {
+  html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
@@ -1085,29 +1120,33 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
   
   .metric-card {
-    padding: 16px;
+    padding: 12px 14px;
   }
   
   .metric-value {
-    font-size: 22px;
+    font-size: 20px;
   }
   
   .metric-title {
-    font-size: 11px;
+    font-size: 10px;
   }
   
   .metric-icon {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
   
   .metric-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
   
+  .section-card {
+    padding: 12px;
+  }
+
   .modal-overlay {
-    padding: 16px;
+    padding: 12px;
   }
   
   .modal-dialog {
@@ -1122,8 +1161,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     padding: 12px 16px;
   }
   
+  .calendar-grid {
+    gap: 4px;
+  }
+
   .calendar-day {
     font-size: 11px;
+    padding: 1px;
   }
   
   .day-number {
@@ -1133,8 +1177,81 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   .day-indicator {
     width: 4px;
     height: 4px;
-    bottom: 4px;
+    bottom: 3px;
   }
+
+  .settings-dropdown {
+    width: 240px;
+    padding: 12px;
+  }
+
+  .metric-value.category-value {
+    font-size: 20px;
+  }
+
+  .metric-value.category-value.long-text {
+    font-size: 15px;
+  }
+
+  .calendar-selected-info {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .calendar-selected-info button {
+    align-self: flex-start;
+  }
+}
+
+/* Extra Small Date Filter Stack */
+@media (max-width: 480px) {
+  .controls-row .flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .controls-row .flex span {
+    text-align: center;
+    margin: 4px 0;
+  }
+}
+
+/* Very Narrow Screen Metric Cards Stack */
+@media (max-width: 420px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pull to Refresh Indicator styling */
+.pull-to-refresh-indicator {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translate3d(-50%, 0, 0);
+  z-index: 150;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.15s ease-out;
+}
+
+.pull-to-refresh-indicator.refreshing {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+}
+
+.pull-to-refresh-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  backdrop-filter: blur(8px);
 }
 
 

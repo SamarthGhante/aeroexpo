@@ -77,7 +77,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ expenses, summary, cur
             <Tag size={20} />
           </div>
         </div>
-        <div className="metric-value" style={{ fontSize: topCategory.length > 12 ? '24px' : '32px' }}>
+        <div className={`metric-value category-value ${topCategory.length > 12 ? 'long-text' : ''}`}>
           {topCategory}
         </div>
         <div className="metric-desc">

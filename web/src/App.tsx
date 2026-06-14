@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -37,6 +37,11 @@ function App() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pull-to-refresh State
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
 
   // Settings State
   const [currency, setCurrency] = useState<string>(() => localStorage.getItem('aeroexpo_currency') || 'USD');
@@ -142,6 +147,123 @@ function App() {
   useEffect(() => {
     setOffset(0);
   }, [categoryFilter, startDateFilter, endDateFilter]);
+
+  // Refs for touch handlers to avoid recreating event listeners on every touch move
+  const pullRefreshingRef = useRef(pullRefreshing);
+  const isModalOpenRef = useRef(isModalOpen);
+  const isSettingsOpenRef = useRef(isSettingsOpen);
+  const confirmConfigOpenRef = useRef(confirmConfig.isOpen);
+  const pullDistanceRef = useRef(pullDistance);
+
+  useEffect(() => {
+    pullRefreshingRef.current = pullRefreshing;
+  }, [pullRefreshing]);
+
+  useEffect(() => {
+    isModalOpenRef.current = isModalOpen;
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    isSettingsOpenRef.current = isSettingsOpen;
+  }, [isSettingsOpen]);
+
+  useEffect(() => {
+    confirmConfigOpenRef.current = confirmConfig.isOpen;
+  }, [confirmConfig.isOpen]);
+
+  useEffect(() => {
+    pullDistanceRef.current = pullDistance;
+  }, [pullDistance]);
+
+  const triggerPullRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    setPullDistance(60); // Hold spinner at threshold height while loading
+    try {
+      await fetchData();
+      addToast('Data refreshed successfully');
+    } catch (err) {
+      // already logged
+    } finally {
+      // Smooth reset
+      setPullRefreshing(false);
+      setPullDistance(0);
+      setIsPulling(false);
+    }
+  }, [fetchData, addToast]);
+
+  useEffect(() => {
+    let startY = 0;
+    let startX = 0;
+    let active = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Only start pull if scrolled to top, not refreshing, and no modals are open
+      if (
+        window.scrollY > 0 ||
+        pullRefreshingRef.current ||
+        isModalOpenRef.current ||
+        isSettingsOpenRef.current ||
+        confirmConfigOpenRef.current
+      ) {
+        return;
+      }
+
+      const touch = e.touches[0];
+      startY = touch.clientY;
+      startX = touch.clientX;
+      active = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!active) return;
+
+      const touch = e.touches[0];
+      const deltaY = touch.clientY - startY;
+      const deltaX = touch.clientX - startX;
+
+      // Cancel if moving sideways or upward
+      if (deltaY < 0 || Math.abs(deltaX) > Math.abs(deltaY)) {
+        active = false;
+        setPullDistance(0);
+        setIsPulling(false);
+        return;
+      }
+
+      if (deltaY > 0) {
+        // Prevent default browser bounce scroll behavior
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        setIsPulling(true);
+        // Calculate distance with resistance
+        const dist = Math.min(100, deltaY * 0.4);
+        setPullDistance(dist);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!active) return;
+      active = false;
+      setIsPulling(false);
+
+      const currentDist = pullDistanceRef.current;
+      if (currentDist >= 60) {
+        triggerPullRefresh();
+      } else {
+        setPullDistance(0);
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [triggerPullRefresh]);
 
   // Currency Formatter
   const formatCurrency = (cents: number) => {
@@ -502,7 +624,6 @@ function App() {
                 className="input-control"
                 value={startDateFilter}
                 onChange={(e) => setStartDateFilter(e.target.value)}
-                style={{ width: '150px' }}
               />
               <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>to</span>
               <input
@@ -510,7 +631,6 @@ function App() {
                 className="input-control"
                 value={endDateFilter}
                 onChange={(e) => setEndDateFilter(e.target.value)}
-                style={{ width: '150px' }}
               />
             </div>
           </div>
@@ -699,6 +819,28 @@ function App() {
         onConfirm={confirmConfig.onConfirm}
         onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
       />
+
+      {/* Pull-to-refresh Indicator */}
+      {(isPulling || pullRefreshing) && (
+        <div 
+          className={`pull-to-refresh-indicator ${pullRefreshing ? 'refreshing' : ''}`}
+          style={{
+            transform: `translate3d(-50%, ${pullDistance}px, 0)`,
+            opacity: Math.min(1, pullDistance / 40),
+          }}
+        >
+          <div className="pull-to-refresh-circle">
+            <RefreshCw 
+              size={18} 
+              className={pullRefreshing ? 'animate-spin' : ''} 
+              style={{
+                transform: pullRefreshing ? undefined : `rotate(${pullDistance * 5}deg)`,
+                transition: pullRefreshing ? undefined : 'transform 0.05s linear',
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Toast Notifications */}
       <div className="toast-container">
